@@ -1,3 +1,23 @@
 @tailwind base;  
 @tailwind components;  
 @tailwind utilities;  
+
+.form-control {
+  @apply appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight
+}
+
+.form-control:focus {
+  @apply outline-none border-blue-500
+}
+
+.btn-add {
+  @apply bg-blue-500 text-white font-bold py-2 px-4 rounded
+}
+
+.btn-add:focus {
+  @apply outline-none
+}
+
+.btn-add:hover {
+  @apply opacity-75
+}

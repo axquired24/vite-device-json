@@ -5,10 +5,12 @@ import TelkomselGroup from './TelkomselGroup';
 import InstallmentGroup from './InstallmentGroup';  
   
 const DeviceForm = () => {  
+    const [deviceId, setDeviceId] = useState('');
     const [name, setName] = useState('');  
     const [unitPrice, setUnitPrice] = useState('');  
     const [drawerIcon, setDrawerIcon] = useState('');  
-    const [deviceImage, setDeviceImage] = useState('');  
+    const [deviceImage, setDeviceImage] = useState(''); 
+    const [gformUrl, setGformUrl] = useState('');
     const [specs, setSpecs] = useState([{ orderNum: 1, label: '', value: '' }]);  
     const [telkomselBundle, setTelkomselBundle] = useState([{ orderNum: 1, label: '', value: '' }]);  
     const [installment, setInstallment] = useState([{ month: 1, payment: '' }]);  
@@ -37,6 +39,13 @@ const DeviceForm = () => {
                 handle: '.installment-group'  
             });  
         }  
+
+        // Prevent scrolling when input number is focused
+        document.addEventListener("wheel", function(event){
+            if(document.activeElement.type === "number"){
+                document.activeElement.blur();
+            }
+        });
     }, []);  
   
     const addSpec = () => {  
@@ -75,10 +84,12 @@ const DeviceForm = () => {
                     const data = JSON.parse(e.target.result);  
                     if (data.data && data.data.length > 0) {  
                         const device = data.data[0];  
+                        setDeviceId(device.id);  
                         setName(device.name);  
                         setUnitPrice(device.unitPrice);  
                         setDrawerIcon(device.drawerIcon);  
-                        setDeviceImage(device.deviceImage);  
+                        setDeviceImage(device.deviceImage);
+                        setGformUrl(device?.gformUrl || '');
                         setSpecs(device.specs);  
                         setTelkomselBundle(device.telkomselBundle);  
                         setInstallment(device.installment);  
@@ -99,14 +110,15 @@ const DeviceForm = () => {
         event.preventDefault();  
   
         const device = {  
-            id: Date.now(),  
+            id: deviceId,  
             name: name,  
             specs: autoOrderNum(specs),
             telkomselBundle: autoOrderNum(telkomselBundle),  
             unitPrice: unitPrice,
             installment: installment,
             drawerIcon: drawerIcon,  
-            deviceImage: deviceImage  
+            deviceImage: deviceImage,
+            gformUrl: gformUrl
         };  
   
         const jsonData = {  
@@ -118,10 +130,33 @@ const DeviceForm = () => {
         };  
   
         setJsonData(jsonData);  
-    };  
+    }; 
+
+    const copyToClipboard = (jsonData) => {
+        const el = document.createElement('textarea');
+        el.value = JSON.stringify(jsonData, null, 2);
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+        alert('Copied to clipboard');
+    }
+
+    const previewMobile = (
+        <div className='px-2 mt-6'>
+            <div className="flex justify-end">
+                <button className='btn-add' onClick={() => copyToClipboard(jsonData.data[0])}>Copy</button>
+            </div>
+            {jsonData && (  
+                <div className="json-output p-4 bg-gray-200 rounded overflow-auto">  
+                    <pre>{JSON.stringify(jsonData.data[0], null, 2)}</pre>  
+                </div>  
+            )}
+        </div>
+    )
   
-    return (  
-        <div className="max-w-[1200px] mx-auto bg-white p-6 rounded-lg shadow-md">  
+    const builderForm = (  
+        <div className="w-full bg-white p-6 rounded-lg shadow-md">  
             <h1 className="text-2xl font-bold mb-6">Form Input Perangkat</h1>  
   
             <form onSubmit={handleSubmit}>  
@@ -130,24 +165,32 @@ const DeviceForm = () => {
                         <h2 className="text-xl font-bold mb-4">Device Info</h2>
                         <div className="mb-4 mt-6">  
                             <label htmlFor="jsonFile" className="block text-gray-700 font-bold mb-2">Impor JSON:</label>  
-                            <input type="file" id="jsonFile" name="jsonFile" accept=".json" onChange={handleImportJson} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />  
+                            <input type="file" id="jsonFile" name="jsonFile" accept=".json" onChange={handleImportJson} className="form-control" />  
                         </div> 
 
                         <div className="mb-4">  
-                            <label htmlFor="name" className="block text-gray-700 font-bold mb-2">Nama Perangkat:</label>  
-                            <input type="text" id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />  
+                            <label htmlFor="deviceId" className="block text-gray-700 font-bold mb-2">Device ID:</label>  
+                            <input type="text" id="deviceId" name="deviceId" value={deviceId} onChange={(e) => setDeviceId(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
-                            <label htmlFor="unitPrice" className="block text-gray-700 font-bold mb-2">Harga Satuan:</label>  
-                            <input type="text" id="unitPrice" name="unitPrice" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />  
+                            <label htmlFor="name" className="block text-gray-700 font-bold mb-2">Nama Perangkat:</label>  
+                            <input type="text" id="name" name="name" value={name} onChange={(e) => setName(e.target.value)} className="form-control" required />  
+                        </div>  
+                        <div className="mb-4">  
+                            <label htmlFor="unitPrice" className="block text-gray-700 font-bold mb-2">Harga:</label>  
+                            <input type="text" id="unitPrice" name="unitPrice" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
                             <label htmlFor="drawerIcon" className="block text-gray-700 font-bold mb-2">Icon:</label>  
-                            <input type="text" id="drawerIcon" name="drawerIcon" value={drawerIcon} onChange={(e) => setDrawerIcon(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />  
+                            <input type="text" id="drawerIcon" name="drawerIcon" value={drawerIcon} onChange={(e) => setDrawerIcon(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
                             <label htmlFor="deviceImage" className="block text-gray-700 font-bold mb-2">Gambar Full:</label>  
-                            <input type="text" id="deviceImage" name="deviceImage" value={deviceImage} onChange={(e) => setDeviceImage(e.target.value)} className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required />  
+                            <input type="text" id="deviceImage" name="deviceImage" value={deviceImage} onChange={(e) => setDeviceImage(e.target.value)} className="form-control" required />  
+                        </div>  
+                        <div className="mb-4">  
+                            <label htmlFor="gformUrl" className="block text-gray-700 font-bold mb-2">GForm URL:</label>  
+                            <input type="url" id="gformUrl" name="gformUrl" value={gformUrl} onChange={(e) => setGformUrl(e.target.value)} className="form-control" required />  
                         </div>  
                     </div>
 
@@ -162,7 +205,7 @@ const DeviceForm = () => {
                                 }} onRemove={() => removeInstallment(index)} />  
                             ))}  
                         </div>  
-                        <button type="button" className="add-installment bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" onClick={addInstallment}>Tambah Cicilan</button>  
+                        <button type="button" className="add-installment btn-add" onClick={addInstallment}>Tambah Cicilan</button>  
                     </div>
 
                     <div className="grid-cols-1">
@@ -176,7 +219,7 @@ const DeviceForm = () => {
                                 }} onRemove={() => removeSpec(index)} />  
                             ))}  
                         </div>  
-                        <button type="button" className="add-spec bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" onClick={addSpec}>Tambah Spesifikasi</button>  
+                        <button type="button" className="add-spec btn-add" onClick={addSpec}>Tambah Spesifikasi</button>  
                     </div>
 
                     <div className="grid-cols-1">
@@ -190,7 +233,7 @@ const DeviceForm = () => {
                                 }} onRemove={() => removeTelkomsel(index)} />  
                             ))}  
                         </div>  
-                        <button type="button" className="add-telkomsel bg-blue-500 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline" onClick={addTelkomsel}>Tambah Bundel</button>  
+                        <button type="button" className="add-telkomsel btn-add" onClick={addTelkomsel}>Tambah Bundel</button>  
                     </div>
                 </div>
                 {/* end grid */} 
@@ -199,14 +242,19 @@ const DeviceForm = () => {
                     <button type="submit" className="bg-green-500 w-full text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Simpan</button>  
                 </div>
             </form>  
-  
-            {jsonData && (  
-                <div className="json-output mt-6 p-4 bg-gray-200 rounded">  
-                    <pre>{JSON.stringify(jsonData.data[0], null, 2)}</pre>  
-                </div>  
-            )}  
         </div>  
     );  
+
+    return (
+        <div className="grid grid-cols-12 px-4">
+            <div className="col-span-9 overflow-auto h-[100vh]">
+                {builderForm}
+            </div>
+            <div className="col-span-3">
+                {previewMobile}
+            </div>
+        </div>
+    )
 };  
   
 export default DeviceForm;  
