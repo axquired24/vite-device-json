@@ -11,21 +11,26 @@ const DeviceForm = () => {
     const [drawerIcon, setDrawerIcon] = useState('');  
     const [deviceImage, setDeviceImage] = useState(''); 
     const [gformUrl, setGformUrl] = useState('');
-    const [specs, setSpecs] = useState([{ orderNum: 1, label: '', value: '' }]);  
-    const [telkomselBundle, setTelkomselBundle] = useState([{ orderNum: 1, label: '', value: '' }]);  
+    const [specs, setSpecs] = useState([{ label: '', value: '' }]);  
+    const [telkomselBundle, setTelkomselBundle] = useState([{ label: '', value: '' }]);  
     const [installment, setInstallment] = useState([{ month: 1, payment: '' }]);  
-    const [jsonData, setJsonData] = useState(null);  
+    const [jsonData, setJsonData] = useState(null);
+
+    const [importedDevices, setImportedDevices] = useState([]);
+    const [currentImportDeviceId, setCurrentImportDeviceId] = useState(0);
   
-    const specsContainerRef = useRef(null);  
+    const specsContainerRef = useRef(null);
     const telkomselContainerRef = useRef(null);  
     const installmentContainerRef = useRef(null);  
+
+    const LOCAL_STORAGE_KEY = 'BB_DEVICES';
   
     useEffect(() => {  
         if (specsContainerRef.current) {  
             new Sortable(specsContainerRef.current, {  
                 animation: 150,  
-                handle: '.spec-group'  
-            });  
+                handle: '.spec-group'
+            });
         }  
         if (telkomselContainerRef.current) {  
             new Sortable(telkomselContainerRef.current, {  
@@ -46,10 +51,26 @@ const DeviceForm = () => {
                 document.activeElement.blur();
             }
         });
-    }, []);  
+
+        // Get previous device from storage
+        const deviceFromStorage = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
+        if (deviceFromStorage) {
+            setImportedDevices(deviceFromStorage);
+            autoFillForm(deviceFromStorage[0])
+        } // endif
+    }, []);
+
+    useEffect(() => {
+        const device = importedDevices[currentImportDeviceId]
+        if (device) {
+            autoFillForm(device)
+        } else {
+            console.log("no device found", {importedDevices, currentImportDeviceId})
+        }
+    }, [currentImportDeviceId]);
   
     const addSpec = () => {  
-        setSpecs([...specs, { orderNum: specs.length + 1, label: '', value: '' }]);  
+        setSpecs([...specs, { label: '', value: '' }]);  
     };  
   
     const removeSpec = (index) => {  
@@ -58,7 +79,7 @@ const DeviceForm = () => {
     };  
   
     const addTelkomsel = () => {  
-        setTelkomselBundle([...telkomselBundle, { orderNum: telkomselBundle.length + 1, label: '', value: '' }]);  
+        setTelkomselBundle([...telkomselBundle, { label: '', value: '' }]);  
     };  
   
     const removeTelkomsel = (index) => {  
@@ -73,26 +94,34 @@ const DeviceForm = () => {
     const removeInstallment = (index) => {  
         const newInstallment = installment.filter((_, i) => i !== index);  
         setInstallment(newInstallment);  
-    };  
+    }; 
+
+    const autoFillForm = (device) => {
+        setDeviceId(device.id);  
+        setName(device.name);  
+        setUnitPrice(device.unitPrice);  
+        setDrawerIcon(device.drawerIcon);  
+        setDeviceImage(device.deviceImage);
+        setGformUrl(device?.gformUrl || '');
+        setSpecs(device.specs);  
+        setTelkomselBundle(device.telkomselBundle);  
+        setInstallment(device.installment);  
+    }
   
     const handleImportJson = (event) => {  
         const file = event.target.files[0];  
         if (file) {  
             const reader = new FileReader();  
             reader.onload = (e) => {  
-                try {  
+                try {
                     const data = JSON.parse(e.target.result);  
                     if (data.data && data.data.length > 0) {  
-                        const device = data.data[0];  
-                        setDeviceId(device.id);  
-                        setName(device.name);  
-                        setUnitPrice(device.unitPrice);  
-                        setDrawerIcon(device.drawerIcon);  
-                        setDeviceImage(device.deviceImage);
-                        setGformUrl(device?.gformUrl || '');
-                        setSpecs(device.specs);  
-                        setTelkomselBundle(device.telkomselBundle);  
-                        setInstallment(device.installment);  
+                        const device = data.data[0];
+                        autoFillForm(device)
+
+                        setImportedDevices(data.data);
+                        setCurrentImportDeviceId(0);
+                        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.data));
                     }  
                 } catch (error) {  
                     alert('Invalid JSON file');  
@@ -101,35 +130,49 @@ const DeviceForm = () => {
             reader.readAsText(file);  
         }  
     };  
+    
+    const getValuesFromDomRef = (containerRef) => {
+        return Array.from(containerRef.current.children).map((elm, idx) => {
+            const label = elm.getElementsByTagName('input')[0].value
+            const val = elm.getElementsByTagName('input')[1].value
+            const orderNum = idx + 1
 
-    const autoOrderNum = (arr) => {
-        return arr.map((item, index) => ({ ...item, orderNum: index + 1 }));
+            return {
+                orderNum,
+                label,
+                value: val
+            }
+        })
     }
   
     const handleSubmit = (event) => {  
-        event.preventDefault();  
+        event.preventDefault();
   
         const device = {  
             id: deviceId,  
             name: name,  
-            specs: autoOrderNum(specs),
-            telkomselBundle: autoOrderNum(telkomselBundle),  
+            specs: getValuesFromDomRef(specsContainerRef),
+            telkomselBundle: getValuesFromDomRef(telkomselContainerRef),  
             unitPrice: unitPrice,
             installment: installment,
             drawerIcon: drawerIcon,  
             deviceImage: deviceImage,
             gformUrl: gformUrl
-        };  
+        };
+
+        const newImportedDevices = [...importedDevices];
+        newImportedDevices[currentImportDeviceId] = device;
+        setImportedDevices(newImportedDevices);
   
         const jsonData = {  
             code: 200,  
             updatedAt: Math.floor(Date.now() / 1000),  
-            data: [device],  
+            data: newImportedDevices, 
             message: "ok",  
             responseTime: new Date().toISOString().replace(/[-:.]/g, "").slice(0, 14)  
         };  
   
-        setJsonData(jsonData);  
+        setJsonData(jsonData);
     }; 
 
     const copyToClipboard = (jsonData) => {
@@ -145,11 +188,11 @@ const DeviceForm = () => {
     const previewMobile = (
         <div className='px-2 pt-6 overflow-auto h-[100vh]'>
             <div className="flex justify-end">
-                <button className='btn-add' onClick={() => copyToClipboard(jsonData.data[0])}>Copy</button>
+                <button className='btn-add' onClick={() => copyToClipboard(jsonData)}>Copy</button>
             </div>
             {jsonData && (  
                 <div className="json-output p-4 bg-gray-200 rounded overflow-x-auto">  
-                    <pre>{JSON.stringify(jsonData.data[0], null, 2)}</pre>  
+                    <pre>{JSON.stringify(jsonData, null, 2)}</pre>  
                 </div>  
             )}
         </div>
@@ -166,7 +209,20 @@ const DeviceForm = () => {
                         <div className="mb-4 mt-6">  
                             <label htmlFor="jsonFile" className="block text-gray-700 font-bold mb-2">Impor JSON:</label>  
                             <input type="file" id="jsonFile" name="jsonFile" accept=".json" onChange={handleImportJson} className="form-control" />  
-                        </div> 
+                        </div>
+                        <div className="mb-4 mt-6">  
+                            <label htmlFor="currentImportDeviceId" className="block text-gray-700 font-bold mb-2">Select Device</label> 
+                            <select id="currentImportDeviceId" name="currentImportDeviceId" value={currentImportDeviceId} onChange={(e) => setCurrentImportDeviceId(e.target.value)} className="form-control">
+                                {
+                                    importedDevices.map((device, idx) => (
+                                        <option key={idx} value={idx}>{
+                                            ['#' + device.id, device.name].join(' ')
+                                        }</option>
+                                    ))
+                                }
+                                <option value="0">Select Device</option>
+                            </select>
+                        </div>
 
                         <div className="mb-4">  
                             <label htmlFor="deviceId" className="block text-gray-700 font-bold mb-2">Device ID:</label>  
@@ -226,10 +282,10 @@ const DeviceForm = () => {
                         <h2 className="text-xl font-bold mb-4 mt-6">Bundel Telkomsel</h2>  
                         <div ref={telkomselContainerRef} className="border p-4 rounded mb-4">  
                             {telkomselBundle.map((bundle, index) => (  
-                                <TelkomselGroup key={index} bundle={bundle} onChange={(newBundle) => {  
+                                <TelkomselGroup key={index} bundle={bundle} onChange={(newBundle) => { 
                                     const newTelkomselBundle = [...telkomselBundle];  
-                                    newTelkomselBundle[index] = newBundle;  
-                                    setTelkomselBundle(newTelkomselBundle);  
+                                    newTelkomselBundle[index] = newBundle;
+                                    setTelkomselBundle(newTelkomselBundle);
                                 }} onRemove={() => removeTelkomsel(index)} />  
                             ))}  
                         </div>  
@@ -238,8 +294,8 @@ const DeviceForm = () => {
                 </div>
                 {/* end grid */} 
   
-                <div className="mb-4 mt-6">
-                    <button type="submit" className="bg-green-500 w-full text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Simpan</button>  
+                <div className="mb-4 mt-6 fixed bottom-0 right-1/3 mr-10 shadow-lg">
+                    <button type="submit" className="bg-green-500 text-white font-bold py-2 px-4 rounded hover:opacity-60 focus:outline-none focus:shadow-outline">Generate JSON</button>  
                 </div>
             </form>  
         </div>  
