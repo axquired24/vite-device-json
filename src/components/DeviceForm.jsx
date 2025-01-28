@@ -143,12 +143,12 @@ const DeviceForm = () => {
     }
 
     const previewMobile = (
-        <div className='px-2 mt-6'>
+        <div className='px-2 pt-6 overflow-auto h-[100vh]'>
             <div className="flex justify-end">
                 <button className='btn-add' onClick={() => copyToClipboard(jsonData.data[0])}>Copy</button>
             </div>
             {jsonData && (  
-                <div className="json-output p-4 bg-gray-200 rounded overflow-auto">  
+                <div className="json-output p-4 bg-gray-200 rounded overflow-x-auto">  
                     <pre>{JSON.stringify(jsonData.data[0], null, 2)}</pre>  
                 </div>  
             )}
@@ -247,10 +247,10 @@ const DeviceForm = () => {
 
     return (
         <div className="grid grid-cols-12 px-4">
-            <div className="col-span-9 overflow-auto h-[100vh]">
+            <div className="col-span-8 overflow-auto h-[100vh]">
                 {builderForm}
             </div>
-            <div className="col-span-3">
+            <div className="col-span-4">
                 {previewMobile}
             </div>
         </div>
