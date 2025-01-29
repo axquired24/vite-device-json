@@ -4,10 +4,14 @@ import SpecGroup from './SpecGroup';
 import TelkomselGroup from './TelkomselGroup';  
 import InstallmentGroup from './InstallmentGroup';  
   
+const LOCAL_STORAGE_KEY = 'BB_DEVICES';
+const IMAGE_BASE_URL = 'https://zola-cdn.s3.ap-southeast-3.amazonaws.com/device-bundling';
+
 const DeviceForm = () => {  
     const [deviceId, setDeviceId] = useState('');
     const [name, setName] = useState('');  
     const [unitPrice, setUnitPrice] = useState('');  
+    const [stockAvailable, setStockAvailable] = useState('');
     const [drawerIcon, setDrawerIcon] = useState('');  
     const [deviceImage, setDeviceImage] = useState(''); 
     const [gformUrl, setGformUrl] = useState('');
@@ -21,9 +25,7 @@ const DeviceForm = () => {
   
     const specsContainerRef = useRef(null);
     const telkomselContainerRef = useRef(null);  
-    const installmentContainerRef = useRef(null);  
-
-    const LOCAL_STORAGE_KEY = 'BB_DEVICES';
+    const installmentContainerRef = useRef(null);
   
     useEffect(() => {  
         if (specsContainerRef.current) {  
@@ -100,12 +102,32 @@ const DeviceForm = () => {
         setDeviceId(device.id);  
         setName(device.name);  
         setUnitPrice(device.unitPrice);  
+        setStockAvailable(device?.stockAvailable || 'yes');  
         setDrawerIcon(device.drawerIcon);  
         setDeviceImage(device.deviceImage);
         setGformUrl(device?.gformUrl || '');
-        setSpecs(device.specs);  
+        setSpecs(device.specs);
         setTelkomselBundle(device.telkomselBundle);  
         setInstallment(device.installment);  
+    }
+
+    const newDevice = () => {
+        const device = {
+            id: '',
+            name: 'New Device',
+            specs: [{ label: 'Not available', value: '-' }],
+            telkomselBundle: [],
+            unitPrice: '',
+            stockAvailable: '',
+            installment: [{ month: 1, payment: 'Not available' }],
+            drawerIcon: '',
+            deviceImage: '',
+            gformUrl: ''
+        }
+        const newDeviceList = [...importedDevices, device];
+        setImportedDevices(newDeviceList);
+        setCurrentImportDeviceId(newDeviceList.length - 1);
+        autoFillForm(device)
     }
   
     const handleImportJson = (event) => {  
@@ -154,6 +176,7 @@ const DeviceForm = () => {
             specs: getValuesFromDomRef(specsContainerRef),
             telkomselBundle: getValuesFromDomRef(telkomselContainerRef),  
             unitPrice: unitPrice,
+            stockAvailable,
             installment: installment,
             drawerIcon: drawerIcon,  
             deviceImage: deviceImage,
@@ -163,6 +186,7 @@ const DeviceForm = () => {
         const newImportedDevices = [...importedDevices];
         newImportedDevices[currentImportDeviceId] = device;
         setImportedDevices(newImportedDevices);
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newImportedDevices));
   
         const jsonData = {  
             code: 200,  
@@ -185,10 +209,31 @@ const DeviceForm = () => {
         alert('Copied to clipboard');
     }
 
+    const downloadJson = (jsonData) => {
+        const fileName = [
+            "device_bundling",
+            jsonData.updatedAt
+        ].join("_");
+        const json = JSON.stringify(jsonData, null, 2);
+        const blob = new Blob([json], { type: "application/json" });
+        const href = URL.createObjectURL(blob);
+
+        // create "a" HTLM element with href to file
+        const link = document.createElement("a");
+        link.href = href;
+        link.download = fileName + ".json";
+        document.body.appendChild(link);
+        link.click();
+
+        // clean up "a" element & remove ObjectURL
+        document.body.removeChild(link);
+        URL.revokeObjectURL(href);
+    }
+
     const previewMobile = (
         <div className='px-2 pt-6 overflow-auto h-[100vh]'>
             <div className="flex justify-end">
-                <button className='btn-add' onClick={() => copyToClipboard(jsonData)}>Copy</button>
+                <button className='btn-add' onClick={() => downloadJson(jsonData)}>Download</button>
             </div>
             {jsonData && (  
                 <div className="json-output p-4 bg-gray-200 rounded overflow-x-auto">  
@@ -210,8 +255,11 @@ const DeviceForm = () => {
                             <label htmlFor="jsonFile" className="block text-gray-700 font-bold mb-2">Impor JSON:</label>  
                             <input type="file" id="jsonFile" name="jsonFile" accept=".json" onChange={handleImportJson} className="form-control" />  
                         </div>
-                        <div className="mb-4 mt-6">  
-                            <label htmlFor="currentImportDeviceId" className="block text-gray-700 font-bold mb-2">Select Device</label> 
+                        <div className="mb-4 mt-6">
+                            <div className="flex justify-between">
+                                <label htmlFor="currentImportDeviceId" className="block text-gray-700 font-bold mb-2">Select Device</label> 
+                                <button type="button" className="text-blue-700 underline text-sm" onClick={newDevice}>New Device</button>
+                            </div>  
                             <select id="currentImportDeviceId" name="currentImportDeviceId" value={currentImportDeviceId} onChange={(e) => setCurrentImportDeviceId(e.target.value)} className="form-control">
                                 {
                                     importedDevices.map((device, idx) => (
@@ -237,17 +285,28 @@ const DeviceForm = () => {
                             <input type="text" id="unitPrice" name="unitPrice" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
-                            <label htmlFor="drawerIcon" className="block text-gray-700 font-bold mb-2">Icon:</label>  
+                            <label htmlFor="stockAvailable" className="block text-gray-700 font-bold mb-2">Stok Tersedia?</label>  
+                            <input type="text" id="stockAvailable" name="stockAvailable" value={stockAvailable} onChange={(e) => setStockAvailable(e.target.value)} className="form-control" required />  
+                        </div>  
+                        <div className="mb-4">  
+                            <label htmlFor="drawerIcon" className="block text-gray-700 font-bold mb-2">Icon (70x64):</label>  
                             <input type="text" id="drawerIcon" name="drawerIcon" value={drawerIcon} onChange={(e) => setDrawerIcon(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
-                            <label htmlFor="deviceImage" className="block text-gray-700 font-bold mb-2">Gambar Full:</label>  
+                            <label htmlFor="deviceImage" className="block text-gray-700 font-bold mb-2">Gambar Full (300x276):</label>  
                             <input type="text" id="deviceImage" name="deviceImage" value={deviceImage} onChange={(e) => setDeviceImage(e.target.value)} className="form-control" required />  
                         </div>  
                         <div className="mb-4">  
                             <label htmlFor="gformUrl" className="block text-gray-700 font-bold mb-2">GForm URL:</label>  
                             <input type="url" id="gformUrl" name="gformUrl" value={gformUrl} onChange={(e) => setGformUrl(e.target.value)} className="form-control" required />  
                         </div>  
+                        <div className="mb-4">
+                            <label className="block text-gray-700 font-bold mb-2">Image Preview:</label> 
+                            <div className="flex gap-4 items-end">
+                                <div><img src={IMAGE_BASE_URL + '/' + drawerIcon} alt='Icon' /></div> 
+                                <div><img src={IMAGE_BASE_URL + '/' + deviceImage} alt='Full Image' /></div> 
+                            </div>
+                        </div> 
                     </div>
 
                     <div className="grid-cols-1">
