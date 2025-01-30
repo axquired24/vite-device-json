@@ -171,7 +171,7 @@ const DeviceForm = () => {
         event.preventDefault();
   
         const device = {  
-            id: deviceId,  
+            id: parseInt(deviceId),  
             name: name,  
             specs: getValuesFromDomRef(specsContainerRef),
             telkomselBundle: getValuesFromDomRef(telkomselContainerRef),  
